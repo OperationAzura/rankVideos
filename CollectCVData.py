@@ -127,7 +127,7 @@ def Detect(p, fName, cvData):
             
             #capture bounding box data for eacth motion detected
             motionROIFilePath = fName + '/frame_' + str(frameTotal) + '/motion/motion_' + str(motionCount) + '.jpg'
-            frameData['motion_'+str(motionCount)] = {'x': mx,'y':my, 'w':mw, 'h':mh,'imgPath': motionROIFilePath}
+            frameData['motion_'+str(motionCount)] = {'x': int(mx),'y':int(my), 'w':int(mw), 'h':int(mh),'imgPath': motionROIFilePath}
             
             motionROI = frame[my:my+mh, mx:mx+mw]
             #save detected motion as jpg
@@ -160,35 +160,7 @@ def Detect(p, fName, cvData):
                 
                 #capture bounding box data for eacth motion detected
                 faceROIFilePath = fName + '/frame_' + str(frameTotal) + '/faces/face_' + str(faceCount) + '.jpg'
-                frameData['face_'+str(motionCount)] = {'x': mx,'y':my, 'w':mw, 'h':mh,'imgPath': faceROIFilePath}
-                #save detected face as jpg
-                faceROI = frame[y:y+h, x:x+w]
-                try:
-                    os.makedirs(fName + '/frame_' + str(frameTotal) + '/faces/' )
-                    cv2.imwrite(faceROIFilePath, faceROI)
-                except OSError as e:
-                    if e.errno != errno.EEXIST:
-                        raise
-                    #if exists, still save file
-                    try:
-                        cv2.imwrite(faceROIFilePath, faceROI)
-                    except Exception as e:
-                        raise
-                ###end try catch
-                faceCount += 1
-            ### end faces loop
-            
-            #look for faces from the front
-            faces = faceFrontClassifier.detectMultiScale(grayFrame,1.1,9)
-            faceCount = 0
-            for (x, y, w, h) in faces:
-                #draw box on origional frame
-                cv2.rectangle(colorFrame, (x, y), (x + w, y + h), (255, 0, 0), 2)
-                cv2.putText(colorFrame, 'Face_' + str(faceCount), (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
-                
-                #capture bounding box data for eacth motion detected
-                faceROIFilePath = fName + '/frame_' + str(frameTotal) + '/faces/face_' + str(faceCount) + '.jpg'
-                frameData['face_'+str(faceCount)] = {'x': x,'y':y, 'w':w, 'h':h,'imgPath': faceROIFilePath}
+                frameData['face_'+str(faceCount)] = {'x': int(x),'y':int(y), 'w':int(w), 'h':int(h),'imgPath': faceROIFilePath}
                 #save detected face as jpg
                 faceROI = frame[y:y+h, x:x+w]
                 try:
@@ -216,7 +188,7 @@ def Detect(p, fName, cvData):
                 
                 #capture bounding box data for eacth face profile detected
                 faceProfileROIFilePath = fName + '/frame_' + str(frameTotal) + '/faceProfiles/faceProfile_' + str(faceProfileCount) + '.jpg'
-                frameData['faceProfile_'+str(faceProfileCount)] = {'x': x,'y':y, 'w':w, 'h':h,'imgPath': faceProfileROIFilePath}
+                frameData['faceProfile_'+str(faceProfileCount)] = {'x': int(x),'y':int(y), 'w':int(w), 'h':int(h),'imgPath': faceProfileROIFilePath}
                 #save detected face as jpg
                 faceProfileROI = frame[y:y+h, x:x+w]
                 try:
@@ -244,7 +216,7 @@ def Detect(p, fName, cvData):
                 
                 #capture bounding box data for eacth cat face detected
                 catFaceROIFilePath = fName + '/frame_' + str(frameTotal) + '/catFaces/catFace_' + str(catFaceCount) + '.jpg'
-                frameData['catFace_'+str(catFaceCount)] = {'x': x,'y':y, 'w':w, 'h':h,'imgPath': catFaceROIFilePath}
+                frameData['catFace_'+str(catFaceCount)] = {'x': int(x),'y':int(y), 'w':int(w), 'h':int(h),'imgPath': catFaceROIFilePath}
                 #save detected cat face as jpg
                 catFaceROI = frame[y:y+h, x:x+w]
                 try:
@@ -261,6 +233,8 @@ def Detect(p, fName, cvData):
                 ###end try catch
                 catFaceCount += 1
             ### end cat faces loop
+            #write the frame to jpg file
+            cv2.imwrite(fName +'/frame_'+ str(frameTotal) +'/frame'+ str(frameTotal) +'.jpg', colorFrame)
         ### end if motion
         #write frame to video writter
         mp4Vid.write(colorFrame)
