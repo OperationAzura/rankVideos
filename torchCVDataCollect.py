@@ -120,25 +120,37 @@ def Detect(p, fName, cvData):
         frameRGB = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         boxes, predClass = getPrediction(frameRGB, threshold) 
         for i in range(len(boxes)):
+            if classCounter[predClass[i]] == 0:
+                try:
+                    os.makedirs('torch/' + fName[:len(fName)-4] + '/' + predClass[i])
+                except OSError as e:
+                    if e.errno != errno.EEXIST:
+                        raise
+            
             title = predClass[i]+str(classCounter[predClass[i]]) #class name + number of occurance for naming
             classCounter.update(predClass[i]) #update the class name counter
 
-            cv2.rectangle(frameRGB, boxes[i][0], boxes[i][1],color=(0, 255, 0), thickness=rectTh)
-            cv2.putText(frameRGB, title, boxes[i][0],  cv2.FONT_HERSHEY_SIMPLEX, textSize, (0,255,0),thickness=textTh)
             (x, y) = boxes[i][0]
             (xw, yh) = boxes[i][1]
+            ### convert type numpy.float32 to int
+            x = int(x)
+            y = int(y)
+            xw = int(xw)
+            yh = int(yh)
+
+            cv2.rectangle(frameRGB, (x, y), (xw, yh),color=(0, 255, 0), thickness=rectTh)
+            cv2.putText(frameRGB, title, (x, y),  cv2.FONT_HERSHEY_SIMPLEX, textSize, (0,255,0),thickness=textTh)
+            #crop predicted region of interest
             predROI = frame[ y:yh, x:xw ]
-
+            #save ROI image and data
             predROIFilePath = 'torch/' + fName[:len(fName)-4] + '/' + predClass[i] + '/' + title + '.jpg'
-            frameData[title] = {'x': int(x),'y':int(y), 'w':int(xw - x), 'h':int(yh - y),'imgPath': predROIFilePath}
-
-        #
-        #MOTION REMOVED
-        #
+            cv2.imwrite(predROIFilePath, predROI)
+            frameData[title] = {'x': x,'y':y, 'w':xw - x, 'h':yh - y,'imgPath': predROIFilePath}
 
         cv2.imwrite('torch/' + fName[:len(fName)-4] +'/frame_'+ str(frameTotal) + '.jpg', frameRGB)
         #write frame to video writter
         mp4Vid.write(frameRGB)
+        print('finished frame: ' + str(frameTotal) + 'of file: ' + fName)
     #End frame loop
 
     #Release video capture object
