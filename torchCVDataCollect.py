@@ -27,6 +27,11 @@ COCO_INSTANCE_CATEGORY_NAMES = [
     'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush'
 ]
 
+""" index out of range??? = [
+    '__background__', 'person', 'bird', 'cat', 'dog', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl',
+    'mouse', 'remote', 'keyboard', 'cell phone', 'book', 'scissors'
+]"""
+
 #getPrediction gets the bounding boxes and class of the FCNN predictions
 def getPrediction(frameRGB, threshold):
     img = Image.fromarray(frameRGB)
@@ -78,9 +83,8 @@ def Detect(p, fName, cvData):
         time.sleep(1)
         vid = cv2.VideoCapture(p + fName)
 
-    motionDetected = False #if no motion gets detected skip wirtting video file
     frameWidth = int(vid.get(3)) #get width of origional frame
-    frameHeight = int(vid.get(3)) #get height of origional frame
+    frameHeight = int(vid.get(4)) #get height of origional frame
 
     frameReadFails = 0 #track how many failed frame reads there are TODO maybe 1 every video due to logical structure
 
@@ -96,9 +100,13 @@ def Detect(p, fName, cvData):
             raise
     #new video file for bounding boxes
     mp4Vid = cv2.VideoWriter('torch/'+fName,cv2.VideoWriter_fourcc(*'mp4v'), 15, (frameWidth,frameHeight))
+    #fmp4Vid = cv2.VideoWriter('torch/ff'+fName,cv2.VideoWriter_fourcc(*'fmp4'), 15, (frameWidth,frameHeight))
+    #mp4BGRVid = cv2.VideoWriter('torch/BGR'+fName,cv2.VideoWriter_fourcc(*'mp4v'), 15, (frameWidth,frameHeight))
+    #fmp4BGRVid = cv2.VideoWriter('torch/ffBGR'+fName,cv2.VideoWriter_fourcc(*'fmp4'), 15, (frameWidth,frameHeight))
     
     #loop over video framse, check for motion, then faces etc,, then write bounding box data to cvData object, extract detected areas as jpg, and create new video with bounding boxes
     while readSuccess:
+        start = time.time()
         #read video file 
         (readSuccess, frame) = vid.read()
 
@@ -128,7 +136,7 @@ def Detect(p, fName, cvData):
                         raise
             
             title = predClass[i]+str(classCounter[predClass[i]]) #class name + number of occurance for naming
-            classCounter.update(predClass[i]) #update the class name counter
+            classCounter.update([predClass[i]]) #update the class name counter
 
             (x, y) = boxes[i][0]
             (xw, yh) = boxes[i][1]
@@ -150,7 +158,12 @@ def Detect(p, fName, cvData):
         cv2.imwrite('torch/' + fName[:len(fName)-4] +'/frame_'+ str(frameTotal) + '.jpg', frameRGB)
         #write frame to video writter
         mp4Vid.write(frameRGB)
+        #fmp4Vid.write(frameRGB)
+        #frameBGR = cv2.cvtColor(frameRGB, cv2.COLOR_RGB2BGR)
+        #mp4BGRVid.write(frameBGR)
+        #fmp4BGRVid.write(frameBGR)
         print('finished frame: ' + str(frameTotal) + 'of file: ' + fName)
+        print(str(start - time.time()))
     #End frame loop
 
     #Release video capture object
@@ -158,6 +171,12 @@ def Detect(p, fName, cvData):
       
     mp4Vid
     mp4Vid.release()
+    #fmp4Vid
+    #fmp4Vid.release()
+    #mp4BGRVid
+    #mp4BGRVid.release()
+    #fmp4BGRVid
+    #fmp4BGRVid.release()
     
     #remove empty ranking data and return rankings data
     if len(cvData[fName]) < 1:
