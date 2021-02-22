@@ -2,6 +2,7 @@ import torchvision
 model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
 model.eval()
 
+import pika
 import torchvision.transforms as T
 import errno
 import time
@@ -12,6 +13,7 @@ from collections import defaultdict
 from collections import Counter
 from PIL import Image
 import base64
+import sys
 
 COCO_INSTANCE_CATEGORY_NAMES = [
     '__background__', 'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus',
@@ -131,12 +133,12 @@ def Detect(p, fName, cvData):
         #send fram to MQ
         #
 
-        frameString = cv2.imencode('.jpg', img)[1].tostring()
+        frameString = str(cv2.imencode('.jpg', frame)[1].tobytes())
         payload = {'byteString': frameString, 'fileName': fName, 'frameID': frameTotal}
         jsonPayload = json.dumps(payload)
-        pay64 = base64.urlsafe_b64encode(jsonPayload)
+        pay64 = base64.urlsafe_b64encode(jsonPayload.encode("utf-8"))
 
-        connection = pika.BlockingConnection(pika.URLParameters('amqp://derek:bazinga1@localhost:5672/'))
+        connection = pika.BlockingConnection(pika.URLParameters('amqp://derek:bazinga1@192.168.1.12:5672/'))
         channel = connection.channel()
         channel.queue_declare(queue='frame')
         channel.basic_publish(exchange='',
@@ -145,6 +147,7 @@ def Detect(p, fName, cvData):
                       
         connection.close()
 
+        sys.exit(0)
         frameRGB = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         boxes, predClass = getPrediction(frameRGB, threshold) 
         for i in range(len(boxes)):
