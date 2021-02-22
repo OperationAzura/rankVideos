@@ -11,6 +11,7 @@ import json
 from collections import defaultdict
 from collections import Counter
 from PIL import Image
+import base64
 
 COCO_INSTANCE_CATEGORY_NAMES = [
     '__background__', 'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus',
@@ -124,6 +125,25 @@ def Detect(p, fName, cvData):
         textTh = 3
         textSize = 3
         threshold = 0.5
+
+        #
+        #convert frame to bytes
+        #send fram to MQ
+        #
+
+        frameString = cv2.imencode('.jpg', img)[1].tostring()
+        payload = {'byteString': frameString, 'fileName': fName, 'frameID': frameTotal}
+        jsonPayload = json.dumps(payload)
+        pay64 = base64.urlsafe_b64encode(jsonPayload)
+
+        connection = pika.BlockingConnection(pika.URLParameters('amqp://derek:bazinga1@localhost:5672/'))
+        channel = connection.channel()
+        channel.queue_declare(queue='frame')
+        channel.basic_publish(exchange='',
+                      routing_key='frame',
+                      body=frameString)
+                      
+        connection.close()
 
         frameRGB = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         boxes, predClass = getPrediction(frameRGB, threshold) 
