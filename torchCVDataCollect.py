@@ -41,10 +41,14 @@ def getPrediction(frameRGB, threshold):
     predClass = [COCO_INSTANCE_CATEGORY_NAMES[i] for i in list(pred[0]['labels'].numpy())] # Get the Prediction Score
     predBoxes = [[(i[0], i[1]), (i[2], i[3])] for i in list(pred[0]['boxes'].detach().numpy())] # Bounding boxes
     predScore = list(pred[0]['scores'].detach().numpy())
-    predT = [predScore.index(x) for x in predScore if x > threshold][-1] # Get list of index with score greater than threshold.
-    predBoxes = predBoxes[:predT+1]
-    predClass = predClass[:predT+1]
-    return predBoxes, predClass
+    if len(predScore) < 1:
+        print("len(predScore) < 1 !!!!!!!!!!!!")
+    else: 
+        predT = [predScore.index(x) for x in predScore if x > threshold][-1] # Get list of index with score greater than threshold.
+        predBoxes = predBoxes[:predT+1]
+        predClass = predClass[:predT+1]
+        return predBoxes, predClass
+    return [], []
 
 cvDataPath = 'torchData.json'
 
