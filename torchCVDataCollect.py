@@ -133,17 +133,18 @@ def Detect(p, fName, cvData):
         #send fram to MQ
         #
 
-        frameString = str(cv2.imencode('.jpg', frame)[1].tobytes())
-        payload = {'byteString': frameString, 'fileName': fName, 'frameID': frameTotal}
-        jsonPayload = json.dumps(payload)
-        pay64 = base64.urlsafe_b64encode(jsonPayload.encode("utf-8"))
+        print('frame type: ', type(frame))
+        _,frameJPG = cv2.imencode('.jpg', frame)
+        print('frameJPG type: ', type(frameJPG))
+        jstr = json.dumps({"frame": base64.b64encode(frameJPG).decode('ascii'), 'fileName': fName, 'frameID': frameTotal})
+        print('jstr type: ', type(jstr))
 
         connection = pika.BlockingConnection(pika.URLParameters('amqp://derek:bazinga1@192.168.1.12:5672/'))
         channel = connection.channel()
         channel.queue_declare(queue='frame')
         channel.basic_publish(exchange='',
                       routing_key='frame',
-                      body=frameString)
+                      body=jstr)
                       
         connection.close()
 
