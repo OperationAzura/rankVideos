@@ -5,6 +5,7 @@ model.eval()
 
 import torchvision.transforms as T
 import pika, sys, os
+import time
 import base64
 import cv2
 import json
@@ -66,7 +67,7 @@ def main():
     channel.queue_declare(queue='frame')
 
     def callback(ch, method, properties, body):
-        start = time.
+        start = time.time()
         print('body: ',type(body))
         jBody = json.loads(body)
         for x in jBody:
