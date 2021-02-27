@@ -29,11 +29,57 @@ COCO_INSTANCE_CATEGORY_NAMES = [
     'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'N/A', 'book',
     'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush'
 ]
+class VideoManager(object):
+    def __init__(self, path, fileName, cvData):
+        self.path = path
+        self.fileName = fileName
+        self.cvData = cvData
+        self.classCounter = Counter() #keep track of how many times a class is predicted for manimg purposes
+        self.vid = self.getVid()
+        self.frameWidth = int(self.vid.get(3)) #get width of origional frame
+        self.frameHeight = int(self.vid.get(4)) #get height of origional frame
+        self.frameReadFails = 0
+        self.cvData[self.fileName] = defaultdict(None) #cvData object for the video file
+        self.data = self.cvData[self.fileName]
+        self.frameTotal = 0 #counts total number of frames
+        self.readSuccess = True #will control the video frame loops
+        self.checkTorchDir()
+        self.mp4Vid = cv2.VideoWriter('torch/'+self.fileName,cv2.VideoWriter_fourcc(*'mp4v'), 15, (self.frameWidth,self.frameHeight))
 
-""" index out of range??? = [
-    '__background__', 'person', 'bird', 'cat', 'dog', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl',
-    'mouse', 'remote', 'keyboard', 'cell phone', 'book', 'scissors'
-]"""
+        #frameLoop is the main loop through the video frames
+        def frameLoop(self):
+            #loop over video framse, check for motion, then faces etc,, then write bounding box data to cvData object, extract detected areas as jpg, and create new video with bounding boxes
+            while self.readSuccess:
+                start = time.time()
+                #read video file 
+                (self.readSuccess, selfframe) = self.vid.read()
+                if not readSuccess:
+                    continue
+
+                self.frameTotal += 1
+
+
+        #getVid gets the video file based on the passed in file path
+        def getVid(self):
+            vid = cv2.VideoCapture(self.path + self.fileName)
+            retry = 0
+            while not vid.isOpened() and retry < 10:
+                retry += 1
+                print('vid not opened? retry: ', retry) 
+                time.sleep(1)
+                vid  = cv2.VideoCapture(self.path + self.fileName)
+            return vid
+        
+        #checkTorchDir makes sure the directory exists or creates it
+        def checkTorchDir(self):
+            try:
+                os.makedirs('torch/' + fName[:len(fName)-4] + '/' )
+            except OSError as e:
+                if e.errno != errno.EEXIST:
+                    raise
+        
+        
+
 
 #getPrediction gets the bounding boxes and class of the FCNN predictions
 def getPrediction(frameRGB, threshold):
@@ -76,48 +122,15 @@ def CollectCVData():
                 outfile.close()
 #Detect will check each frame for motion, faces, and cats then log there location data to a json file and store detected areas as jpg
 def Detect(p, fName, cvData):
-    classCounter = Counter() #keep track of how many times a class is predicted for manimg purposes
-    # Read the source video file
-    vid = cv2.VideoCapture(p + fName)
-    retry = 0
-    while not vid.isOpened() and retry < 10:
-        retry += 1
-        print('vid not opened? retry: ', retry) 
-        time.sleep(1)
-        vid = cv2.VideoCapture(p + fName)
-
-    frameWidth = int(vid.get(3)) #get width of origional frame
-    frameHeight = int(vid.get(4)) #get height of origional frame
-
-    frameReadFails = 0 #track how many failed frame reads there are TODO maybe 1 every video due to logical structure
-
-    cvData[fName] = defaultdict(None) #cvData object for the video file
-    data = cvData[fName] #object for this video file data
-    frameTotal = 0 #counts total number of frames
-    readSuccess = True #will control the video frame loops
     
-    try:
-        os.makedirs('torch/' + fName[:len(fName)-4] + '/' )
-    except OSError as e:
-        if e.errno != errno.EEXIST:
-            raise
-    #new video file for bounding boxes
-    mp4Vid = cv2.VideoWriter('torch/'+fName,cv2.VideoWriter_fourcc(*'mp4v'), 15, (frameWidth,frameHeight))
-    #fmp4Vid = cv2.VideoWriter('torch/ff'+fName,cv2.VideoWriter_fourcc(*'fmp4'), 15, (frameWidth,frameHeight))
-    #mp4BGRVid = cv2.VideoWriter('torch/BGR'+fName,cv2.VideoWriter_fourcc(*'mp4v'), 15, (frameWidth,frameHeight))
-    #fmp4BGRVid = cv2.VideoWriter('torch/ffBGR'+fName,cv2.VideoWriter_fourcc(*'fmp4'), 15, (frameWidth,frameHeight))
     
-    #loop over video framse, check for motion, then faces etc,, then write bounding box data to cvData object, extract detected areas as jpg, and create new video with bounding boxes
-    while readSuccess:
-        start = time.time()
-        #read video file 
-        (readSuccess, frame) = vid.read()
-
-        if not readSuccess:
-            continue
-
-        frameTotal += 1
-             
+        ###
+        # ###
+        # ###
+        # ###
+        # ###
+        # ###
+        ###      
         #set json objects for logging json data
         data[frameTotal] = defaultdict(None)
         frameData = data[frameTotal]
