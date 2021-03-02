@@ -12,6 +12,7 @@ import json
 from PIL import Image
 from io import BytesIO
 import numpy as np
+import logging
 
 COCO_INSTANCE_CATEGORY_NAMES = [
     '__background__', 'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus',
@@ -28,8 +29,12 @@ COCO_INSTANCE_CATEGORY_NAMES = [
     'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush'
 ]
 
+#logging setup
+logging.basicConfig(filename='rq.log', level=logging.INFO)
+
 #getPrediction gets the bounding boxes and class of the FCNN predictions
 def getPrediction(img, threshold):
+    logging.info('!!!getPrediction starting')
     start = time.time()
     transform = T.Compose([T.ToTensor()]) # Defing PyTorch Transform
     img = transform(img) # Apply the transform to the image
@@ -55,42 +60,38 @@ def getPrediction(img, threshold):
         predBoxes = predBoxes[:predT+1]
         predClass = predClass[:predT+1]
     else:
-        print('XXX no matches found?')
-    print('!!! '+ str(start - time.time()) + ' seconds to finish!')    
+        logging.info('XXX no matches found?')
+    logging.info('!!!getPrediction finished in: ' + str(start - time.time()))
     return predBoxes, predClass
 
 
 def main():
-    connection = pika.BlockingConnection(pika.URLParameters('amqp://derek:bazinga1@localhost:5672/'))
+    mqURL = 'amqp://derek:bazinga1@192.168.1.12:5672/'
+    frameQueue = 'frame'
+    predictedQueue = 'predictedResults'
+    connection = pika.BlockingConnection(pika.URLParameters(mqURL))
     channel = connection.channel()
 
-    channel.queue_declare(queue='frame')
+    channel.queue_declare(queue=frameQueue)
 
     def callback(ch, method, properties, body):
+        logging.info('callback fired')
         start = time.time()
-        print('body: ',type(body))
         jBody = json.loads(body)
-        for x in jBody:
-            print('x: ',x)
         imdata = base64.b64decode(jBody['frame'])
         im = Image.open(BytesIO(imdata))
 
         threshold = 0.5
         (boxes, classes) = getPrediction(im, threshold)
         response = json.dumps({'boxes': boxes, 'classes': classes, 'fileName':jBody['fileName'], 'frameID': jBody['frameID']})
-        #jstr = json.dumps({"frame": base64.b64encode(frameJPG).decode('ascii'), 'fileName': fName, 'frameID': frameTotal})
-        #send back results to MQ
-        #
-        connection = pika.BlockingConnection(pika.URLParameters('amqp://derek:bazinga1@localhost:5672/'))
-        channel = connection.channel()
-
-        channel.queue_declare(queue='predictedResults')
-
-        channel.basic_publish(exchange='',
-                            routing_key='predictedResults',
+        resCon = pika.BlockingConnection(pika.URLParameters(mqURL))
+        resChan = resCon.channel()
+        resChan.queue_declare(queue=predictedQueue)
+        resChan.basic_publish(exchange='',
+                            routing_key=predictedQueue,
                             body= response)
         
-        connection.close()
+        resCon.close()
 
         #im.save('new.jpg')
         #cv2.imwrite('./new.jpg', im)
@@ -98,8 +99,10 @@ def main():
         
         #f = open('new.jpg', 'w')
         #cv2.imwrite()
+        print('callback ended in: ' + str(time.time() - start) )
+        logging.info('callback ended in: ' + str(time.time() - start) )
 
-    channel.basic_consume(queue='frame', on_message_callback=callback, auto_ack=True)
+    channel.basic_consume(queue=frameQueue, on_message_callback=callback, auto_ack=True)
 
     print(' [*] Waiting for messages. To exit press CTRL+C')
     channel.start_consuming()

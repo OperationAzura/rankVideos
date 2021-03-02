@@ -2,6 +2,7 @@ import torchvision
 model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
 model.eval()
 
+import threading
 import logging
 import pika
 import torchvision.transforms as T
@@ -32,7 +33,7 @@ COCO_INSTANCE_CATEGORY_NAMES = [
 ]
 class VideoManager(object):
     def __init__(self, path, fileName, cvData):
-        logging.basicConfig(filename='vidManager.log', encoding='utf-8', level=logging.DEBUG)
+        logging.basicConfig(filename='vidManager.log', level=logging.INFO)
 
         self.maxActiveFrames = 4
 
@@ -56,6 +57,7 @@ class VideoManager(object):
         self.textTh = 3
         self.textSize = 3
         self.threshold = 0.5
+        self.predictionHandler()
         logging.info('done with constructor')
 
     #frameLoop is the main loop through the video frames
@@ -68,14 +70,11 @@ class VideoManager(object):
                 time.sleep(10)
                 continue
             
-            while self. sentFrameCount > self.maxActiveFrames:
-                print("maximum active frames hit! " + self.maxActiveFrames)
-                time.sleep(1)
                 
             start = time.time()
             #read video file 
             (self.readSuccess, self.frame) = self.vid.read()
-            if not readSuccess:
+            if not self.readSuccess:
                 continue
             self.frameTotal += 1
             self.data[self.frameTotal] = defaultdict(None)
@@ -92,35 +91,41 @@ class VideoManager(object):
     #finishVideo will finish the video once all the frames are collacted
     def finishVideo(self):
         logging.info('starting finishVideo')
+        while self.sentFrameCount < 0:
+            print('waiting for frame to finish in finishVideo')
+            logging.info(('waiting for frame to finish in finishVideo'))
+            time.sleep(1)
         for i, frame in enumerate(self.frameArr):
-            cv2.imwrite('torch/' + self.fileName[:len(self.fileName)-4] +'/frame_'+ i+1 + '.jpg', frame['frame'])
+            cv2.imwrite('torch/' + self.fileName[:len(self.fileName)-4] +'/frame_'+ str(i+1) + '.jpg', frame['frame'])
             self.mp4Vid.write(frame['frame'])
         self.mp4Vid
-        self.mp4Vid.close()
-        self.vid.close()
+        self.mp4Vid.release()
+        self.vid.release()
         logging.info('done with finishVideo')
 
     #predictionHandler gets the prediction boxes and clases from the MQ
     def predictionHandler(self):
         logging.info('starting predictionHandler')
-        self.resCon = pika.BlockingConnection(pika.URLParameters('amqp://derek:bazinga1@localhost:5672/'))
+        
+        self.resCon = pika.BlockingConnection(pika.URLParameters('amqp://derek:bazinga1@192.168.1.12:5672/'))
         self.resChan = self.resCon.channel()
-
-        self.resChan.queue_declare(queue='predictionResults')
-
+        logging.info('setting up response channels')
+        self.resChan.queue_declare(queue='predictedResults')
+        logging.info('before response callback declairation')
         def callback(ch, method, properties, body):
+            logging.info('!!!callback!!!')
+            logging.info('recived return frame data')
             start = time.time()
             print('body: ',type(body))
             jBody = json.loads(body)
-            ###
-            ### TODO use frameID to add boxes and classes to the frameArr
-            ###
-            ###
+            print('frameID: ', int(jBody['frameID']))
+            logging.info('frameID: '+str(jBody['frameID']))
+            print('len: ', len(self.frameArr))
             self.frameArr[int(jBody['frameID'])-1]['boxes'] = jBody['boxes']
             self.frameArr[int(jBody['frameID'])-1]['classes'] = jBody['classes']
 
             boxes = jBody['boxes']
-            classes = jbody['classes']
+            classes = jBody['classes']
             for i in range(len(boxes)):
                 if self.classCounter[classes[i]] == 0:
                     try:
@@ -148,16 +153,25 @@ class VideoManager(object):
                 predROIFilePath = 'torch/' + self.fileName[:len(self.fileName)-4] + '/' + classes[i] + '/' + title + '.jpg'
                 cv2.imwrite(predROIFilePath, predROI)
                 self.frameData[title] = {'x': x,'y':y, 'w':xw - x, 'h':yh - y,'imgPath': predROIFilePath}
-
-                for x in jBody:
-                    print('x: ',jBody[x])
+            self.sentFrameCount -= 1
+            print('sentFrameCount: ', self.sentFrameCount)
+            logging.info('sentFrameCount')
+            logging.info(str(self.sentFrameCount))
+            for x in jBody:
+                print('x: ',jBody[x])
             #
             # # consume 
             #     
+        logging.info('right before starting consumption')
+        def responseHandler():
+            logging.info('butts')
             self.resChan.basic_consume(queue='predictedResults', on_message_callback=callback, auto_ack=True)
             self.resChan.start_consuming()
-            self.sentFrameCount -= 1
-            logging.info('done with predictionHandler')
+
+        logging.info('butts before thread start')
+        responseThread = threading.Thread(target=responseHandler)
+        responseThread.start()
+        logging.info('done with predictionHandler')
         
 
     #sendFrame sends the frame data to the MQ
@@ -193,15 +207,16 @@ class VideoManager(object):
     #checkTorchDir makes sure the directory exists or creates it
     def checkTorchDir(self):
         try:
-            os.makedirs('torch/' + fName[:len(fName)-4] + '/' )
+            os.makedirs('torch/' + self.fileName[:len(self.fileName)-4] + '/' )
         except OSError as e:
             if e.errno != errno.EEXIST:
+                raise
 
    
 #CollectCVData will read in video fiels, use motion, face, and catface detection, compare them, store positional data and collect the detected areas as jpg for later model training
 def CollectCVData():
     cvDataPath = 'torchData.json'
-    paths = ['/home/derek/securityCams/cmpVids/']
+    paths = ['./cmpVids/']
     #Load existing CVData files, load them into defaultdict, and skp existing file names
     cvData = defaultdict(None)
     with open(cvDataPath, 'r') as oldCVDataFile:
