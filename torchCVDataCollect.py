@@ -1,13 +1,16 @@
+import face_recognition
 import torchvision
 model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
 model.eval()
 
+import pickle
 import torchvision.transforms as T
 import errno
 import time
 import cv2
 import os
 import json
+import numpy as np
 from collections import defaultdict
 from collections import Counter
 from PIL import Image
@@ -27,10 +30,23 @@ COCO_INSTANCE_CATEGORY_NAMES = [
     'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush'
 ]
 
-""" index out of range??? = [
-    '__background__', 'person', 'bird', 'cat', 'dog', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl',
-    'mouse', 'remote', 'keyboard', 'cell phone', 'book', 'scissors'
-]"""
+#knownFace will check if a person has a known face
+def knownFace(imgROI):
+    faceLocations = face_recognition.face_locations(imgROI)
+    faceEncodings = face_recognition.face_encodings(imgROI, faceLocations)
+    faceNames = []
+
+    for faceEncoding in faceEncodings:
+        matches = face_recognition.compare_faces(knownFaceEncodings, faceEncoding)
+        name = "Unknown"
+        faceDistances = face_recognition.face_distance(knownFaceEncodings, faceEncoding)
+        bestMatchIndex = np.argmin(faceDistances)
+
+        if matches[bestMatchIndex]:
+            name = knownFaceNames[bestMatchIndex]
+            return name
+    return None
+        
 
 #getPrediction gets the bounding boxes and class of the FCNN predictions
 def getPrediction(frameRGB, threshold):
@@ -55,97 +71,101 @@ def getPrediction(frameRGB, threshold):
     return [], []
 
 cvDataPath = 'torchData.json'
+f = open("ref_name.pkl","rb")
+refDictt = pickle.load(f)        
+f.close()
+
+f = open("ref_embed.pkl","rb")
+embedDictt = pickle.load(f)      
+f.close()
+knownFaceEncodings = []  
+knownFaceNames = []
+
+for refId , embedList in embedDictt.items():
+    for myEmbed in embedList:
+        knownFaceEncodings += [myEmbed]
+        knownFaceNames += [refId]
+
+faceLocations = []
+faceEncodings = []
+faceNames = []
+
+
+#recurvePath will follow paths recursivly
+def recurvePath(path, jpgList):
+    fList = os.listdir(path)
+    for fName in fList:
+        if os.path.isdir(path + fName):
+            jpgList = recurvePath(path + fName + '/', jpgList)
+        elif fName[len(fName)-4:].lower() == '.jpg' or fName[len(fName)-4:].lower() == 'png':
+            jpgList.append({'path': path, 'fName': fName})
+    return jpgList
+
 
 #CollectCVData will read in video fiels, use motion, face, and catface detection, compare them, store positional data and collect the detected areas as jpg for later model training
 def CollectCVData():
     
-    paths = ['/home/derek/securityCams/cmpVids/']
+    paths = ['C:\\laptopSSD\\Desktop\\tabletJapan\\',
+            r"C:/laptopHDD/1 aValerie's X-Ternal Hard Drive/Pictures/",
+            r'C:/laptopHDD/4 Picture Archive/'
+            ]
+
     #Load existing CVData files, load them into defaultdict, and skp existing file names
     cvData = defaultdict(None)
     with open(cvDataPath, 'r') as oldCVDataFile:
         cvData = defaultdict(None, json.load(oldCVDataFile))
         oldCVDataFile.close()
+    jpgList = []
     for p in paths:
-        
-        # get a list of files
-        fList = filter(lambda f: f.split('.')[-1] == 'mp4', os.listdir(p))
-        # Loop through file names, and perform ranking if they do not already exist
-        for fName in fList:
-            if fName in cvData:
-                print('file ' + fName + ' already exists in rankings.  SKIPPING')
-                continue
-            print('file: ', p+fName)
-            cvData = Detect(p, fName, cvData)
-            with open(cvDataPath, 'w') as outfile:
-                json.dump(cvData, outfile)
-                outfile.close()
-#Detect will check each frame for motion, faces, and cats then log there location data to a json file and store detected areas as jpg
-def Detect(p, fName, cvData):
-    classCounter = Counter() #keep track of how many times a class is predicted for manimg purposes
-    # Read the source video file
-    vid = cv2.VideoCapture(p + fName)
-    retry = 0
-    while not vid.isOpened() and retry < 10:
-        retry += 1
-        print('vid not opened? retry: ', retry) 
-        time.sleep(1)
-        vid = cv2.VideoCapture(p + fName)
-
-    frameWidth = int(vid.get(3)) #get width of origional frame
-    frameHeight = int(vid.get(4)) #get height of origional frame
-
-    frameReadFails = 0 #track how many failed frame reads there are TODO maybe 1 every video due to logical structure
-
-    cvData[fName] = defaultdict(None) #cvData object for the video file
-    data = cvData[fName] #object for this video file data
-    frameTotal = 0 #counts total number of frames
-    readSuccess = True #will control the video frame loops
+        jpgList = recurvePath(p, jpgList)
+    print('len: ', len(jpgList))
     
+    classCounter = Counter() #keep track of how many times a class is predicted for manimg purposes
+    for jpg in jpgList:
+        print('jpg: ',jpg)
+        if (jpg['path'] + jpg['fName']) in cvData:
+            
+            continue
+        cvData = Detect( jpg['path'], jpg['fName'], cvData,classCounter)
+        with open(cvDataPath, 'w') as outfile:
+            json.dump(cvData, outfile)
+            outfile.close()
+            
+#Detect will check each frame for motion, faces, and cats then log there location data to a json file and store detected areas as jpg
+def Detect(path, fName, cvData, classCounter):
+    
+    img = cv2.imread(path +fName)
+    
+    cvData[path + fName] = defaultdict(None) #cvData object for the video file
+    data = cvData[path + fName] #object for this video file data
+    
+    print('before crash')
+    print(path + fName)
     try:
-        os.makedirs('torch/' + fName[:len(fName)-4] + '/' )
+        os.makedirs('torch/images/' )
     except OSError as e:
         if e.errno != errno.EEXIST:
+            print('not exist error?')
             raise
-    #new video file for bounding boxes
-    mp4Vid = cv2.VideoWriter('torch/'+fName,cv2.VideoWriter_fourcc(*'mp4v'), 15, (frameWidth,frameHeight))
-    #fmp4Vid = cv2.VideoWriter('torch/ff'+fName,cv2.VideoWriter_fourcc(*'fmp4'), 15, (frameWidth,frameHeight))
-    #mp4BGRVid = cv2.VideoWriter('torch/BGR'+fName,cv2.VideoWriter_fourcc(*'mp4v'), 15, (frameWidth,frameHeight))
-    #fmp4BGRVid = cv2.VideoWriter('torch/ffBGR'+fName,cv2.VideoWriter_fourcc(*'fmp4'), 15, (frameWidth,frameHeight))
     
-    #loop over video framse, check for motion, then faces etc,, then write bounding box data to cvData object, extract detected areas as jpg, and create new video with bounding boxes
-    while readSuccess:
         start = time.time()
-        #read video file 
-        (readSuccess, frame) = vid.read()
-
-        if not readSuccess:
-            continue
-
-        frameTotal += 1
-             
-        #set json objects for logging json data
-        data[frameTotal] = defaultdict(None)
-        frameData = data[frameTotal]
         
         ###new detection stuff
         rectTh = 3
         textTh = 3
         textSize = 3
         threshold = 0.5
-
-        frameRGB = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        boxes, predClass = getPrediction(frameRGB, threshold) 
+        print('right before imgRGB')
+        #print('len(img): ', len(img))
+        try:
+           imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        except:
+            print('some kind of error with the file')
+            del cvData[path + fName]
+            return cvData
+        namedPeople = []
+        boxes, predClass = getPrediction(imgRGB, threshold) 
         for i in range(len(boxes)):
-            if classCounter[predClass[i]] == 0:
-                try:
-                    os.makedirs('torch/' + fName[:len(fName)-4] + '/' + predClass[i])
-                except OSError as e:
-                    if e.errno != errno.EEXIST:
-                        raise
-            
-            title = predClass[i]+str(classCounter[predClass[i]]) #class name + number of occurance for naming
-            classCounter.update([predClass[i]]) #update the class name counter
-
             (x, y) = boxes[i][0]
             (xw, yh) = boxes[i][1]
             ### convert type numpy.float32 to int
@@ -154,41 +174,51 @@ def Detect(p, fName, cvData):
             xw = int(xw)
             yh = int(yh)
 
-            cv2.rectangle(frameRGB, (x, y), (xw, yh),color=(0, 255, 0), thickness=rectTh)
-            cv2.putText(frameRGB, title, (x, y),  cv2.FONT_HERSHEY_SIMPLEX, textSize, (0,255,0),thickness=textTh)
             #crop predicted region of interest
-            predROI = frame[ y:yh, x:xw ]
-            #save ROI image and data
-            predROIFilePath = 'torch/' + fName[:len(fName)-4] + '/' + predClass[i] + '/' + title + '.jpg'
+            predROI = img[ y:yh, x:xw ]
+            #check if a pseron was found, then check if they can be identified
+            if predClass[i] == 'person':
+                name = knownFace(predROI)
+                if name != None and name != 'unknown':
+                    predClass[i] = name
+                    namedPeople.append(name)
+            if classCounter[predClass[i]] == 0:
+                try:
+                    os.makedirs('torch/images/' + predClass[i])
+                except OSError as e:
+                    if e.errno != errno.EEXIST:
+                        raise
+            
+            title = predClass[i]+str(classCounter[predClass[i]]) #class name + number of occurance for naming
+            classCounter.update([predClass[i]]) #update the class name counter
+
+            predROIFilePath = 'torch/images/' + predClass[i] + '/' + title + '.jpg'
             cv2.imwrite(predROIFilePath, predROI)
-            frameData[title] = {'x': x,'y':y, 'w':xw - x, 'h':yh - y,'imgPath': predROIFilePath}
-
-        cv2.imwrite('torch/' + fName[:len(fName)-4] +'/frame_'+ str(frameTotal) + '.jpg', frameRGB)
-        #write frame to video writter
-        mp4Vid.write(frameRGB)
-        #fmp4Vid.write(frameRGB)
-        #frameBGR = cv2.cvtColor(frameRGB, cv2.COLOR_RGB2BGR)
-        #mp4BGRVid.write(frameBGR)
-        #fmp4BGRVid.write(frameBGR)
-        print('finished frame: ' + str(frameTotal) + 'of file: ' + fName)
-        print(str(start - time.time()))
-    #End frame loop
-
-    #Release video capture object
-    vid.release() #release source video file
-      
-    mp4Vid
-    mp4Vid.release()
-    #fmp4Vid
-    #fmp4Vid.release()
-    #mp4BGRVid
-    #mp4BGRVid.release()
-    #fmp4BGRVid
-    #fmp4BGRVid.release()
-    
+            data[title] = {'x': x,'y':y, 'w':xw - x, 'h':yh - y,'imgPath': predROIFilePath}
+            cv2.rectangle(imgRGB, (x, y), (xw, yh),color=(0, 255, 0), thickness=rectTh)
+            cv2.putText(imgRGB, title, (x, y),  cv2.FONT_HERSHEY_SIMPLEX, textSize, (0,255,0),thickness=textTh)
+        print('right here?')
+        named = ''
+        for n in namedPeople:
+            named = named+n
+        #if names were found write image to named directory
+        if len(namedPeople) > 0:
+            try:
+                os.makedirs('torch/images/' + named)
+            except OSError as e:
+                if e.errno != errno.EEXIST:
+                    raise
+            print('torch/images/' + fName)
+            cv2.imwrite('torch/images/' + named + '/' + fName, imgRGB)
+        else:
+            print('torch/images/' + fName)
+            cv2.imwrite('torch/images/' + fName, imgRGB)
+        print('image: ' + path + fName  )
+        print(' processed in: ' + str(time.time() - start) + ' seconds')
+        
     #remove empty ranking data and return rankings data
-    if len(cvData[fName]) < 1:
-        del cvData[fName]
+    if len(cvData[path + fName]) < 1:
+        del cvData[path + fName]
     return cvData
 
 if __name__ == "__main__":
