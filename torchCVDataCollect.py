@@ -44,6 +44,9 @@ def knownFace(imgROI):
 
         if matches[bestMatchIndex]:
             name = knownFaceNames[bestMatchIndex]
+            print('XXX')
+            print('name: ', name)
+            print('XXX')
             return name
     return None
         
@@ -72,7 +75,7 @@ def getPrediction(frameRGB, threshold):
 
 cvDataPath = 'torchData.json'
 f = open("ref_name.pkl","rb")
-refDictt = pickle.load(f)        
+refDict = pickle.load(f)        
 f.close()
 
 f = open("ref_embed.pkl","rb")
@@ -84,7 +87,7 @@ knownFaceNames = []
 for refId , embedList in embedDictt.items():
     for myEmbed in embedList:
         knownFaceEncodings += [myEmbed]
-        knownFaceNames += [refId]
+        knownFaceNames += [refDict[refId]]
 
 faceLocations = []
 faceEncodings = []
