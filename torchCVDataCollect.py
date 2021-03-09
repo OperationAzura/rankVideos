@@ -57,9 +57,10 @@ def getPrediction(frameRGB, threshold):
     #
     #move tensors to cuda?
     #
-    transform = T.Compose([T.ToTensor()]) # Defing PyTorch Transform
+    ts = T.ToTensor().to(device='cuda')
+    transform = T.Compose([ts]) # Defing PyTorch Transform
     print('about to cuda the tensor')
-    transform.to(device='cuda')
+    #transform.to(device='cuda')
     print('just cuda\'d the tensor')
     img = transform(img) # Apply the transform to the image
     pred = model([img]) # Pass the image to the model
