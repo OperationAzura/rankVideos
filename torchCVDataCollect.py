@@ -114,10 +114,7 @@ def recurvePath(path, jpgList):
 #CollectCVData will read in video fiels, use motion, face, and catface detection, compare them, store positional data and collect the detected areas as jpg for later model training
 def CollectCVData():
     
-    paths = ['C:\\laptopSSD\\Desktop\\tabletJapan\\',
-            r"C:/laptopHDD/1 aValerie's X-Ternal Hard Drive/Pictures/",
-            r'C:/laptopHDD/4 Picture Archive/'
-            ]
+    paths = ['/cuda/projects/rankVideos/pictures/']
 
     #Load existing CVData files, load them into defaultdict, and skp existing file names
     cvData = defaultdict(None)
