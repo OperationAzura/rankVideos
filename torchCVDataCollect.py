@@ -57,13 +57,17 @@ def getPrediction(frameRGB, threshold):
     #
     #move tensors to cuda?
     #
-    ts = T.ToTensor().to(device='cuda')
+    ts = T.ToTensor()
+    print('ts: ',type(ts))
     transform = T.Compose([ts]) # Defing PyTorch Transform
+    print('transform: ',type(transform))
     print('about to cuda the tensor')
     #transform.to(device='cuda')
     print('just cuda\'d the tensor')
     img = transform(img) # Apply the transform to the image
+    print('img: ', type(img))
     pred = model([img]) # Pass the image to the model
+    print('pred: ',type(pred))
     predClass = [COCO_INSTANCE_CATEGORY_NAMES[i] for i in list(pred[0]['labels'].numpy())] # Get the Prediction Score
     predBoxes = [[(i[0], i[1]), (i[2], i[3])] for i in list(pred[0]['boxes'].detach().numpy())] # Bounding boxes
     predScore = list(pred[0]['scores'].detach().numpy())
