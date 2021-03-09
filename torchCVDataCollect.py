@@ -67,7 +67,7 @@ def getPrediction(frameRGB, threshold):
     print('about to cuda the tensor')
     #transform.to(device='cuda')
     print('just cuda\'d the tensor')
-    img = transform(img) #.to('cuda') # Apply the transform to the image
+    img = transform(img).to('cuda:0') #.to('cuda') # Apply the transform to the image
     
 #########
 
