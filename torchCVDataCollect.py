@@ -2,11 +2,10 @@ import face_recognition
 import torch
 import torchvision
 device = "cuda"
-model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True).to(device)
+model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+model.eval().to(device)
 for n, p in model.named_parameters():
     print(p.device, ' : ', n)
-
-model.eval()
 
 import pickle
 import torchvision.transforms as T
