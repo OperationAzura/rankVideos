@@ -1,7 +1,7 @@
 import face_recognition
 import torch
 import torchvision
-model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True).to('cuda:0')
 model.eval()
 
 import pickle
@@ -72,7 +72,7 @@ def getPrediction(frameRGB, threshold):
 #########
 
     print('img: ', type(img))
-    model = model.to(device)
+    #model = model.to(device)
     pred = model([img]) # Pass the image to the model
     print('pred: ',type(pred))
     predClass = [COCO_INSTANCE_CATEGORY_NAMES[i] for i in list(pred[0]['labels'].numpy())] # Get the Prediction Score
