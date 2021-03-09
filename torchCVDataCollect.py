@@ -74,12 +74,12 @@ def getPrediction(frameRGB, threshold):
     img = transform(img).to(device) #.to('cuda') # Apply the transform to the image
 #########
 
-    print('img: ', type(img))
+    print('img: ', img.device)
     #model = model.to(device)
     
-    #print(model.state_dict())
+    print('before pred')
     pred = model([img]) # Pass the image to the model
-    
+    print('after pred')
     #print(model.state_dict())
     predClass = [COCO_INSTANCE_CATEGORY_NAMES[i] for i in list(pred[0]['labels'].numpy())] # Get the Prediction Score
     predBoxes = [[(i[0], i[1]), (i[2], i[3])] for i in list(pred[0]['boxes'].detach().numpy())] # Bounding boxes
