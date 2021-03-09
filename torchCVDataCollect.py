@@ -3,6 +3,8 @@ import torch
 import torchvision
 device = "cuda"
 model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True).to(device)
+for n, p in model.named_parameters():
+    print(p.device, ' : ', n)
 
 model.eval()
 
@@ -70,7 +72,6 @@ def getPrediction(frameRGB, threshold):
     #transform.to(device='cuda')
     print('just cuda\'d the tensor')
     img = transform(img).to(device) #.to('cuda') # Apply the transform to the image
-    print(torch.type(img))
 #########
 
     print('img: ', type(img))
