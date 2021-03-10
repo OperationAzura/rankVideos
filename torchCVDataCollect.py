@@ -77,7 +77,7 @@ def getPrediction(frameRGB, threshold):
     #model = model.to(device)
     
     print('before pred')
-    pred = model([img]) # Pass the image to the model
+    pred = model([img]).to('cpu') # Pass the image to the model
     print('after pred')
     #print(model.state_dict())
     predClass = [COCO_INSTANCE_CATEGORY_NAMES[i] for i in list(pred[0]['labels'].cpu().numpy())] # Get the Prediction Score
