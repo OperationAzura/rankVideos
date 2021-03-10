@@ -83,7 +83,7 @@ def getPrediction(frameRGB, threshold):
     print('pred: ',len(pred))
     #print(model.state_dict())
     predClass = [COCO_INSTANCE_CATEGORY_NAMES[i] for i in list(pred[0]['labels'].cpu().numpy())] # Get the Prediction Score
-    predBoxes = [[(i[0], i[1]), (i[2], i[3])] for i in list(pred[0]['boxes'].detach().cup().numpy())] # Bounding boxes
+    predBoxes = [[(i[0], i[1]), (i[2], i[3])] for i in list(pred[0]['boxes'].detach().cpu().numpy())] # Bounding boxes
     predScore = list(pred[0]['scores'].detach().cpu().numpy())
     noMatch = True
     for x in predScore:
