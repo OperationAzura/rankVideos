@@ -1,3 +1,4 @@
+from configClass import ConfigClass
 import face_recognition
 import torchvision
 model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
@@ -109,20 +110,14 @@ def recurvePath(path, jpgList):
 
 
 #CollectCVData will read in video fiels, use motion, face, and catface detection, compare them, store positional data and collect the detected areas as jpg for later model training
-def CollectCVData():
-    
-    paths = ['C:\\laptopSSD\\Desktop\\tabletJapan\\',
-            r"C:/laptopHDD/1 aValerie's X-Ternal Hard Drive/Pictures/",
-            r'C:/laptopHDD/4 Picture Archive/'
-            ]
-
+def CollectCVData(config):
     #Load existing CVData files, load them into defaultdict, and skp existing file names
     cvData = defaultdict(None)
-    with open(cvDataPath, 'r') as oldCVDataFile:
+    with open(config.cvDataPath, 'r') as oldCVDataFile:
         cvData = defaultdict(None, json.load(oldCVDataFile))
         oldCVDataFile.close()
     jpgList = []
-    for p in paths:
+    for p in config.imagePaths:
         jpgList = recurvePath(p, jpgList)
     print('len: ', len(jpgList))
     
@@ -132,27 +127,27 @@ def CollectCVData():
         if (jpg['path'] + jpg['fName']) in cvData:
             
             continue
-        cvData = Detect( jpg['path'], jpg['fName'], cvData,classCounter)
+        cvData = Detect( jpg['path'], jpg['fName'], cvData,classCounter, config)
         with open(cvDataPath, 'w') as outfile:
             json.dump(cvData, outfile)
             outfile.close()
             
 #Detect will check each frame for motion, faces, and cats then log there location data to a json file and store detected areas as jpg
-def Detect(path, fName, cvData, classCounter):
-    baseOutDir = 'torch/images/'
+def Detect(path, fName, cvData, classCounter, config):
     img = cv2.imread(path +fName)
-    scalePercent = 50
-    width = int(img.shape[1] * scalePercent / 100)
-    height = int(img.shape[0] * scalePercent / 100)
-    dim = (width, height)
-    img = cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
+    #resize image if desired
+    if config.scalePercent != 100:
+        width = int(img.shape[1] * config.scalePercent / 100)
+        height = int(img.shape[0] * config.scalePercent / 100)
+        dim = (width, height)
+        img = cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
     
     cvData[path + fName] = defaultdict(None) #cvData object for the video file
     data = cvData[path + fName] #object for this video file data
     
     print(path + fName)
     try:
-        os.makedirs(baseOutDir )
+        os.makedirs(config.baseOutputPath )
     except OSError as e:
         if e.errno != errno.EEXIST:
             print('not exist error?')
@@ -160,11 +155,6 @@ def Detect(path, fName, cvData, classCounter):
     
         start = time.time()
         
-        ###new detection stuff
-        rectTh = 3
-        textTh = 3
-        textSize = 3
-        threshold = 0.5
         try:
            imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         except:
@@ -172,7 +162,7 @@ def Detect(path, fName, cvData, classCounter):
             del cvData[path + fName]
             return cvData
         namedPeople = []
-        boxes, predClass = getPrediction(imgRGB, threshold) 
+        boxes, predClass = getPrediction(imgRGB, config.drawConfig.threshold) 
         for i in range(len(boxes)):
             (x, y) = boxes[i][0]
             (xw, yh) = boxes[i][1]
@@ -192,7 +182,7 @@ def Detect(path, fName, cvData, classCounter):
                     namedPeople.append(name)
             if classCounter[predClass[i]] == 0:
                 try:
-                    os.makedirs('torch/images/' + predClass[i])
+                    os.makedirs(config.baseOutputPath + predClass[i])
                 except OSError as e:
                     if e.errno != errno.EEXIST:
                         raise
@@ -200,11 +190,11 @@ def Detect(path, fName, cvData, classCounter):
             title = predClass[i]+str(classCounter[predClass[i]]) #class name + number of occurance for naming
             classCounter.update([predClass[i]]) #update the class name counter
 
-            predROIFilePath = 'torch/images/' + predClass[i] + '/' + title + '.jpg'
+            predROIFilePath = config.baseOutputPath + predClass[i] + '/' + title + '.jpg'
             cv2.imwrite(predROIFilePath, predROI)
             data[title] = {'x': x,'y':y, 'w':xw - x, 'h':yh - y,'imgPath': predROIFilePath}
-            cv2.rectangle(imgRGB, (x, y), (xw, yh),color=(0, 255, 0), thickness=rectTh)
-            cv2.putText(imgRGB, title, (x, y),  cv2.FONT_HERSHEY_SIMPLEX, textSize, (0,255,0),thickness=textTh)
+            cv2.rectangle(imgRGB, (x, y), (xw, yh),color=(0, 255, 0), thickness=config.drawConfig.rectThickness)
+            cv2.putText(imgRGB, title, (x, y),  cv2.FONT_HERSHEY_SIMPLEX, config.drawConfig.textSize, (0,255,0),thickness=config.drawConfig.textThickness)
         print('right here?')
         named = ''
         for n in namedPeople:
@@ -212,12 +202,12 @@ def Detect(path, fName, cvData, classCounter):
         #if names were found write image to named directory
         if len(namedPeople) > 0:
             try:
-                os.makedirs('torch/images/' + named)
+                os.makedirs(config.baseOutputPath + named)
             except OSError as e:
                 if e.errno != errno.EEXIST:
                     raise
             print('torch/images/' + fName)
-            cv2.imwrite('torch/images/' + named + '/' + fName, imgRGB)
+            cv2.imwrite(config.baseOutputPath + named + '/' + fName, imgRGB)
         else:
             print('torch/images/' + fName)
             cv2.imwrite('torch/images/' + fName, imgRGB)
@@ -231,5 +221,6 @@ def Detect(path, fName, cvData, classCounter):
 
 if __name__ == "__main__":
     print('starting ranking')
-    CollectCVData()
+    config = ConfigClass()
+    CollectCVData(config)
     print('finished ranking')
