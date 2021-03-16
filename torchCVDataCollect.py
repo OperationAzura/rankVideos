@@ -73,12 +73,15 @@ def getPrediction(frameRGB, threshold):
         return predBoxes, predClass
     return [], []
 
+knownFaceNamesPath = "ref_name.pkl"
+knownFaceEmbedingsPath = "ref_embed.pkl"
+
 cvDataPath = 'torchData.json'
-f = open("ref_name.pkl","rb")
+f = open(knownFaceNamesPath,"rb")
 refDict = pickle.load(f)        
 f.close()
 
-f = open("ref_embed.pkl","rb")
+f = open(knownFaceEmbedingsPath,"rb")
 embedDictt = pickle.load(f)      
 f.close()
 knownFaceEncodings = []  
@@ -136,16 +139,20 @@ def CollectCVData():
             
 #Detect will check each frame for motion, faces, and cats then log there location data to a json file and store detected areas as jpg
 def Detect(path, fName, cvData, classCounter):
-    
+    baseOutDir = 'torch/images/'
     img = cv2.imread(path +fName)
+    scalePercent = 50
+    width = int(img.shape[1] * scalePercent / 100)
+    height = int(img.shape[0] * scalePercent / 100)
+    dim = (width, height)
+    img = cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
     
     cvData[path + fName] = defaultdict(None) #cvData object for the video file
     data = cvData[path + fName] #object for this video file data
     
-    print('before crash')
     print(path + fName)
     try:
-        os.makedirs('torch/images/' )
+        os.makedirs(baseOutDir )
     except OSError as e:
         if e.errno != errno.EEXIST:
             print('not exist error?')
@@ -158,8 +165,6 @@ def Detect(path, fName, cvData, classCounter):
         textTh = 3
         textSize = 3
         threshold = 0.5
-        print('right before imgRGB')
-        #print('len(img): ', len(img))
         try:
            imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         except:
