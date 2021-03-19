@@ -32,7 +32,7 @@ COCO_INSTANCE_CATEGORY_NAMES = [
 ]
 
 #knownFace will check if a person has a known face
-def knownFace(imgROI):
+def knownFace(imgROI, knownFaceEncodings, knownFaceNames):
     faceLocations = face_recognition.face_locations(imgROI)
     faceEncodings = face_recognition.face_encodings(imgROI, faceLocations)
     faceNames = []
@@ -45,9 +45,6 @@ def knownFace(imgROI):
 
         if matches[bestMatchIndex]:
             name = knownFaceNames[bestMatchIndex]
-            print('XXX')
-            print('name: ', name)
-            print('XXX')
             return name
     return None
         
@@ -66,7 +63,7 @@ def getPrediction(frameRGB, threshold):
         if x > threshold:
             noMatch = False
     if noMatch:
-        print("len(predScore) < 1 !!!!!!!!!!!!")
+        pass
     else: 
         predT = [predScore.index(x) for x in predScore if x > threshold][-1] # Get list of index with score greater than threshold.
         predBoxes = predBoxes[:predT+1]
@@ -74,29 +71,24 @@ def getPrediction(frameRGB, threshold):
         return predBoxes, predClass
     return [], []
 
-knownFaceNamesPath = "ref_name.pkl"
-knownFaceEmbedingsPath = "ref_embed.pkl"
+#loadKnownFaces loads the know faces
+def loadKnownFaces(config):
+    f = open(config.knownFaceNamesPath,"rb")
+    refDict = pickle.load(f)        
+    f.close()
 
-cvDataPath = 'torchData.json'
-f = open(knownFaceNamesPath,"rb")
-refDict = pickle.load(f)        
-f.close()
+    f = open(config.knownFaceEncodingsPath,"rb")
+    embedDictt = pickle.load(f)      
+    f.close()
+    knownFaceEncodings = []  
+    knownFaceNames = []
 
-f = open(knownFaceEmbedingsPath,"rb")
-embedDictt = pickle.load(f)      
-f.close()
-knownFaceEncodings = []  
-knownFaceNames = []
+    for refId , embedList in embedDictt.items():
+        for myEmbed in embedList:
+            knownFaceEncodings += [myEmbed]
+            knownFaceNames += [refDict[refId]]
 
-for refId , embedList in embedDictt.items():
-    for myEmbed in embedList:
-        knownFaceEncodings += [myEmbed]
-        knownFaceNames += [refDict[refId]]
-
-faceLocations = []
-faceEncodings = []
-faceNames = []
-
+    return knownFaceEncodings, knownFaceNames
 
 #recurvePath will follow paths recursivly
 def recurvePath(path, jpgList):
@@ -137,6 +129,8 @@ def CollectCVData(config):
     #open or create cvData file
     cvData = loadCVData(config)
 
+    kEncodings, kNames = loadKnownFaces(config)
+
     jpgList = []
     for p in config.imagePaths:
         jpgList = recurvePath(p, jpgList)
@@ -147,13 +141,13 @@ def CollectCVData(config):
         print('jpg: ',jpg)
         if (jpg['path'] + jpg['fName']) in cvData:
             continue
-        cvData = Detect( jpg['path'], jpg['fName'], cvData,classCounter, config)
-        with open(cvDataPath, 'w') as outfile:
+        cvData = Detect( jpg['path'], jpg['fName'], cvData,classCounter, config, kEncodings, kNames)
+        with open(config.cvDataPath, 'w') as outfile:
             json.dump(cvData, outfile)
             outfile.close()
             
 #Detect will check each frame for motion, faces, and cats then log there location data to a json file and store detected areas as jpg
-def Detect(path, fName, cvData, classCounter, config):
+def Detect(path, fName, cvData, classCounter, config, kEncodings, kNames):
     img = cv2.imread(path +fName)
     #resize image if desired
     if config.scalePercent != 100:
@@ -196,7 +190,7 @@ def Detect(path, fName, cvData, classCounter, config):
             predROI = img[ y:yh, x:xw ]
             #check if a pseron was found, then check if they can be identified
             if predClass[i] == 'person':
-                name = knownFace(predROI)
+                name = knownFace(predROI, kEncodings, kNames)
                 if name != None and name != 'unknown':
                     predClass[i] = name
                     namedPeople.append(name)
@@ -215,7 +209,6 @@ def Detect(path, fName, cvData, classCounter, config):
             data[title] = {'x': x,'y':y, 'w':xw - x, 'h':yh - y,'imgPath': predROIFilePath}
             cv2.rectangle(imgRGB, (x, y), (xw, yh),color=(0, 255, 0), thickness=config.drawConfig.rectThickness)
             cv2.putText(imgRGB, title, (x, y),  cv2.FONT_HERSHEY_SIMPLEX, config.drawConfig.textSize, (0,255,0),thickness=config.drawConfig.textThickness)
-        print('right here?')
         named = ''
         for n in namedPeople:
             named = named+n

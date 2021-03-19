@@ -2,10 +2,10 @@ import json
 from drawConfigClass import DrawConfig
 
 class ConfigClass(object):
-    def __init__(self, filePath="config.json", knownFaceNamesPath="ref_name.pkl", knownFaceEmbeddingsPath="ref_embed.pkl", cvDataPath="torchData.json", logPath="log.log", imagePaths=["./"], baseOutputPath="torch/images/", scalePercent=50, rectThickness=3, textThickness=3, textSize=3, threshold=0.5):
+    def __init__(self, filePath="config.json", knownFaceNamesPath="ref_name.pkl", knownFaceEncodingsPath="ref_embed.pkl", cvDataPath="torchData.json", logPath="log.log", imagePaths=["./"], baseOutputPath="torch/images/", scalePercent=50, rectThickness=3, textThickness=3, textSize=3, threshold=0.5):
         self.filePath = filePath
         self.knownFaceNamesPath = knownFaceNamesPath
-        self.knownFaceEmbeddingsPath = knownFaceEmbeddingsPath
+        self.knownFaceEncodingsPath = knownFaceEncodingsPath
         self.cvDataPath = cvDataPath
         self.logPath = logPath
         self.imagePaths = imagePaths
@@ -32,8 +32,8 @@ class ConfigClass(object):
 
         if j["knownFaceNamesPath"] != None:
             self.knownFaceNamesPath = j["knownFaceNamesPath"]
-        if j["knownFaceEmbeddingsPath"] != None:
-            self.knownFaceEmbeddingsPath = j["knownFaceEmbeddingsPath"]
+        if j["knownFaceEncodingsPath"] != None:
+            self.knownFaceEncodingsPath = j["knownFaceEncodingsPath"]
         if j["cvDataPath"] != None:
             self.cvDataPath = j["cvDataPath"]
         if j["logPath"] != None:

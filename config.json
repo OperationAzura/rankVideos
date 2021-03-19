@@ -1,6 +1,6 @@
 {
     "knownFaceNamesPath": "ref_name.pkl",
-    "knownFaceEmbeddingsPath": "ref_embed.pkl",
+    "knownFaceEncodingsPath": "ref_embed.pkl",
     "cvDataPath":"torchDataFULLhiiThresh.json",
     "logPath":"log.log",
     "imagePaths": [
