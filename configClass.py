@@ -1,6 +1,7 @@
 import json
 from drawConfigClass import DrawConfig
 
+#ConfigClass loads and stores config data
 class ConfigClass(object):
     def __init__(self, filePath="config.json", knownFaceNamesPath="ref_name.pkl", knownFaceEncodingsPath="ref_embed.pkl", cvDataPath="torchData.json", logPath="log.log", imagePaths=["./"], baseOutputPath="torch/images/", scalePercent=50, rectThickness=3, textThickness=3, textSize=3, threshold=0.5):
         self.filePath = filePath
@@ -13,10 +14,6 @@ class ConfigClass(object):
         self.scalePercent = scalePercent
         self.drawConfig = DrawConfig(rectThickness, textThickness, textSize, threshold)
         self.load()
-
-
-
-        pass
     
     #load will load the config from a file
     def load(self ):
