@@ -1,20 +1,20 @@
 {
     "knownFaceNamesPath": "ref_name.pkl",
     "knownFaceEmbeddingsPath": "ref_embed.pkl",
-    "cvDataPath":"torchData.json",
+    "cvDataPath":"torchDataFULLhiiThresh.json",
     "logPath":"log.log",
     "imagePaths": [
         "C:\\laptopSSD\\Desktop\\tabletJapan\\",
         "C:/laptopHDD/1 aValerie's X-Ternal Hard Drive/Pictures/",
         "C:/laptopHDD/4 Picture Archive/"
     ],
-    "baseOutputPath":"torch/images/",
-    "scalePercent": 50,
+    "baseOutputPath":"torchFULLhiThresh/images/",
+    "scalePercent": 100,
     "drawConfig":{
         "rectThickness" : 3,
         "textThickness": 3,
         "textSize": 3,
-        "threshold": 0.5
+        "threshold": 0.75
     }
 
 

@@ -109,13 +109,34 @@ def recurvePath(path, jpgList):
     return jpgList
 
 
+#loadCVData will load or create and load the cvData file
+def loadCVData(config):
+    try:
+        with open(config.cvDataPath, 'r') as oldCVDataFile:
+            cvData = defaultdict(None, json.load(oldCVDataFile))
+            oldCVDataFile.close()
+            return cvData
+    except FileNotFoundError:
+        try:
+            with open(config.cvDataPath, 'w') as f:
+                f.write('{}')
+                f.close()
+            with open(config.cvDataPath, 'r') as oldCVDataFile:
+                cvData = defaultdict(None, json.load(oldCVDataFile))
+                oldCVDataFile.close()
+                return cvData
+        except:
+            raise
+    except:
+        raise
+    
 #CollectCVData will read in video fiels, use motion, face, and catface detection, compare them, store positional data and collect the detected areas as jpg for later model training
 def CollectCVData(config):
     #Load existing CVData files, load them into defaultdict, and skp existing file names
     cvData = defaultdict(None)
-    with open(config.cvDataPath, 'r') as oldCVDataFile:
-        cvData = defaultdict(None, json.load(oldCVDataFile))
-        oldCVDataFile.close()
+    #open or create cvData file
+    cvData = loadCVData(config)
+
     jpgList = []
     for p in config.imagePaths:
         jpgList = recurvePath(p, jpgList)
@@ -125,7 +146,6 @@ def CollectCVData(config):
     for jpg in jpgList:
         print('jpg: ',jpg)
         if (jpg['path'] + jpg['fName']) in cvData:
-            
             continue
         cvData = Detect( jpg['path'], jpg['fName'], cvData,classCounter, config)
         with open(cvDataPath, 'w') as outfile:
@@ -220,7 +240,8 @@ def Detect(path, fName, cvData, classCounter, config):
     return cvData
 
 if __name__ == "__main__":
+    start = time.time()
     print('starting ranking')
     config = ConfigClass()
     CollectCVData(config)
-    print('finished ranking')
+    print('finished ranking in: ', (time.time() - start))
