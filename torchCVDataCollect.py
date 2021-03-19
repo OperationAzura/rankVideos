@@ -9,7 +9,7 @@ import torchvision.transforms as T
 import errno
 import time
 import cv2
-import os
+import os, sys, getopt
 import json
 import numpy as np
 from collections import defaultdict
@@ -234,7 +234,24 @@ def Detect(path, fName, cvData, classCounter, config, kEncodings, kNames):
 
 if __name__ == "__main__":
     start = time.time()
+    configPath = ''
+    try:
+        opts, args = getopt.getopt(sys.argv[1:],"hc:",["configFile="])
+    except getopt.GetoptError:
+        print('torchCVDataCollect.py -c <configFile>')
+        sys.exit(2)
+    for opt, arg in opts:
+        if opt == '-h':
+            print('torchCVDataCollect.py - <configFile>')
+            sys.exit()
+        elif opt in ("-c", "--configFile"):
+            configPath = arg
+
     print('starting ranking')
-    config = ConfigClass()
+    if configPath != '':
+        config = ConfigClass(filePath=configPath)
+    else:
+        config = ConfigClass()
+
     CollectCVData(config)
     print('finished ranking in: ', (time.time() - start))
